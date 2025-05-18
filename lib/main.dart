@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map_app/widgets/bottom_nav_bar.dart';
-import 'package:flutter_map_app/widgets/map_view.dart';
-import 'package:flutter_map_app/pages/bookmark_page.dart';
-import 'package:flutter_map_app/pages/notification_page.dart';
-import 'package:flutter_map_app/pages/settings_page.dart';
+import 'package:jalurku/widgets/bottom_nav_bar.dart';
+import 'package:jalurku/widgets/map_view.dart';
+import 'package:jalurku/pages/bookmark_page.dart';
+import 'package:jalurku/pages/notification_page.dart';
+import 'package:jalurku/pages/settings_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Map App',
+      title: 'JalurKu',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,

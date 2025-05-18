@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="#4CAF50" opacity="0.1"/>
+  
+  <!-- Main Pin Shape -->
+  <path d="M256 40c-88.366 0-160 71.634-160 160 0 120 160 272 160 272s160-152 160-272c0-88.366-71.634-160-160-160zm0 240c-44.183 0-80-35.817-80-80s35.817-80 80-80 80 35.817 80 80-35.817 80-80 80z" fill="#4CAF50"/>
+  
+  <!-- Inner Circle -->
+  <circle cx="256" cy="200" r="60" fill="#FFFFFF"/>
+  
+  <!-- Pulse Rings -->
+  <circle cx="256" cy="200" r="100" fill="none" stroke="#4CAF50" stroke-width="4" opacity="0.3">
+    <animate attributeName="r" from="60" to="100" dur="2s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.3" to="0" dur="2s" begin="0s" repeatCount="indefinite"/>
+  </circle>
+</svg>
