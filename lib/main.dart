@@ -46,7 +46,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onSearchPressed() {
-    // TODO: Implement location search functionality
+    // This is now handled directly in the CustomSearchBar widget
+  }
+
+  void _onLocationFound(double lat, double lon) {
+    _mapViewKey.currentState?.moveToLocation(lat, lon);
   }
 
   @override
@@ -63,10 +67,11 @@ class _MyHomePageState extends State<MyHomePage> {
             left: 0,
             right: 0,
             child: CustomSearchBar(
-              controller: _searchController,
-              onVoicePressed: _onVoicePressed,
-              onSearchPressed: _onSearchPressed,
-            ),
+            controller: _searchController,
+            onVoicePressed: _onVoicePressed,
+            onSearchPressed: _onSearchPressed,
+            onLocationFound: _onLocationFound,
+          ),
           ),
         ],
       ),

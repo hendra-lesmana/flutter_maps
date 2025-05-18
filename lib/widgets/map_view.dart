@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
+import 'location_details.dart';
 
 class MapView extends StatefulWidget {
   const MapView({Key? key}) : super(key: key);
@@ -15,6 +18,8 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   LatLng? _currentLocation;
   late AnimationController _animationController;
   late Animation<double> _animation;
+  List<Marker> _markers = [];
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -29,6 +34,35 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     _animationController.repeat(reverse: true);
     getCurrentLocation();
     super.initState();
+  }
+
+  Future<void> moveToLocation(double lat, double lon) async {
+    final newLocation = LatLng(lat, lon);
+    _mapController.move(newLocation, 15.0);
+    
+    setState(() {
+      _markers = [
+        Marker(
+          point: newLocation,
+          width: 80,
+          height: 80,
+          child: AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, -10 * _animation.value),
+                child: child,
+              );
+            },
+            child: const Icon(
+              Icons.location_on,
+              color: Colors.red,
+              size: 40,
+            ),
+          ),
+        ),
+      ];
+    });
   }
 
   @override
@@ -110,9 +144,58 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     }
   }
 
+  Future<void> searchLocation(String query) async {
+    try {
+      List<Location> locations = await locationFromAddress(query);
+      if (locations.isNotEmpty) {
+        Location location = locations.first;
+        LatLng searchResult = LatLng(location.latitude, location.longitude);
+        
+        setState(() {
+          _markers = [
+            Marker(
+              point: searchResult,
+              width: 40,
+              height: 40,
+              child: GestureDetector(
+                onTap: () {
+                  showMaterialModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => LocationDetails(
+                      name: query,
+                      rating: 4.5, // Example rating
+                      openStatus: 'Open', // Example status
+                      imageUrl: 'https://example.com/image.jpg', // Example image URL
+                    ),
+                  );
+                },
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+            ),
+          ];
+        });
+
+        _mapController.move(searchResult, 15);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error searching location: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FlutterMap(
+    return Stack(
+      children: [
+        FlutterMap(
       mapController: _mapController,
       options: MapOptions(
         initialCenter: _currentLocation ?? const LatLng(0, 0),
@@ -174,7 +257,51 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
               ),
             ],
           ),
-      ],
-    );
+          MarkerLayer(markers: _markers),
+        ],
+      ),
+      Positioned(
+        top: 16,
+        left: 16,
+        right: 16,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: searchController,
+            decoration: InputDecoration(
+              hintText: 'Search location...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  searchController.clear();
+                  setState(() {
+                    _markers.clear();
+                  });
+                },
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            ),
+            onSubmitted: (value) {
+              if (value.isNotEmpty) {
+                searchLocation(value);
+              }
+            },
+          ),
+        ),
+      ),
+    ]);
   }
 }
