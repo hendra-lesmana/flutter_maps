@@ -70,7 +70,19 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.app',
+          userAgentPackageName: 'com.flutter_map_app',
+          tileProvider: NetworkTileProvider(),
+          retinaMode: true,
+          maxZoom: 18,
+          keepBuffer: 5,
+          tileBuilder: (context, child, tile) {
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.withOpacity(0.1), width: 0.5),
+              ),
+              child: child,
+            );
+          },
         ),
         if (_currentLocation != null)
           MarkerLayer(
