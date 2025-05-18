@@ -40,20 +40,43 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   Future<void> _getCurrentLocation() async {
     try {
       final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        final requestPermission = await Geolocator.requestPermission();
+        if (requestPermission == LocationPermission.denied || requestPermission == LocationPermission.deniedForever) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Izin lokasi diperlukan untuk fitur ini')),
+          );
+          return;
+        }
       }
 
-      final position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
-      });
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mohon aktifkan layanan lokasi di perangkat Anda')),
+        );
+        return;
+      }
 
-      if (_currentLocation != null) {
-        _mapController.move(_currentLocation!, 15);
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
+      );
+      
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+        });
+
+        if (_currentLocation != null) {
+          _mapController.move(_currentLocation!, 15);
+        }
       }
     } catch (e) {
-      debugPrint('Error getting location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mendapatkan lokasi: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -70,19 +93,14 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.flutter_map_app',
+          userAgentPackageName: 'com.example.flutter_map_app',
           tileProvider: NetworkTileProvider(),
-          retinaMode: true,
           maxZoom: 18,
-          keepBuffer: 5,
-          tileBuilder: (context, child, tile) {
-            return Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withOpacity(0.1), width: 0.5),
-              ),
-              child: child,
-            );
-          },
+          minZoom: 3,
+          keepBuffer: 8,
+          tileSize: 256,
+          maxNativeZoom: 18,
+          evictErrorTileStrategy: EvictErrorTileStrategy.dispose,
         ),
         if (_currentLocation != null)
           MarkerLayer(
