@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map_app/widgets/bottom_nav_bar.dart';
 import 'package:flutter_map_app/widgets/map_view.dart';
-import 'package:flutter_map_app/widgets/search_bar.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,25 +31,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
-  final TextEditingController _searchController = TextEditingController();
   final GlobalKey<MapViewState> _mapViewKey = GlobalKey<MapViewState>();
 
   void _onItemSelected(int index) {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  void _onVoicePressed() {
-    // TODO: Implement voice search functionality
-  }
-
-  void _onSearchPressed() {
-    // This is now handled directly in the CustomSearchBar widget
-  }
-
-  void _onLocationFound(double lat, double lon) {
-    _mapViewKey.currentState?.moveToLocation(lat, lon);
   }
 
   @override
@@ -62,17 +48,6 @@ class _MyHomePageState extends State<MyHomePage> {
         fit: StackFit.expand,
         children: [
           MapView(key: _mapViewKey),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 0,
-            right: 0,
-            child: CustomSearchBar(
-            controller: _searchController,
-            onVoicePressed: _onVoicePressed,
-            onSearchPressed: _onSearchPressed,
-            onLocationFound: _onLocationFound,
-          ),
-          ),
         ],
       ),
       bottomNavigationBar: CustomBottomNavBar(
@@ -88,11 +63,5 @@ class _MyHomePageState extends State<MyHomePage> {
         child: const Icon(Icons.my_location),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 }

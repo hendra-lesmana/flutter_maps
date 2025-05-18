@@ -338,7 +338,7 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
         left: 16,
         right: 16,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 25),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(30),
