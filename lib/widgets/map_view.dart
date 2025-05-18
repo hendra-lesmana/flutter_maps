@@ -7,10 +7,10 @@ class MapView extends StatefulWidget {
   const MapView({Key? key}) : super(key: key);
 
   @override
-  State<MapView> createState() => _MapViewState();
+  State<MapView> createState() => MapViewState();
 }
 
-class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
+class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   LatLng? _currentLocation;
   late AnimationController _animationController;
@@ -27,7 +27,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
     _animationController.repeat(reverse: true);
-    _getCurrentLocation();
+    getCurrentLocation();
     super.initState();
   }
 
@@ -37,46 +37,76 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<void> _getCurrentLocation() async {
-    try {
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        final requestPermission = await Geolocator.requestPermission();
-        if (requestPermission == LocationPermission.denied || requestPermission == LocationPermission.deniedForever) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Izin lokasi diperlukan untuk fitur ini')),
-          );
+  Future<void> getCurrentLocation() async {
+    int retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        final permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+          final requestPermission = await Geolocator.requestPermission();
+          if (requestPermission == LocationPermission.denied || requestPermission == LocationPermission.deniedForever) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Izin lokasi diperlukan untuk fitur ini')),
+              );
+            }
+            return;
+          }
+        }
+
+        if (!await Geolocator.isLocationServiceEnabled()) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Mohon aktifkan layanan lokasi di perangkat Anda')),
+            );
+          }
           return;
         }
-      }
 
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mohon aktifkan layanan lokasi di perangkat Anda')),
+        final locationSettings = LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+          timeLimit: const Duration(seconds: 5),
         );
-        return;
-      }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 5),
-      );
-      
-      if (mounted) {
-        setState(() {
-          _currentLocation = LatLng(position.latitude, position.longitude);
-        });
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 5),
+          forceAndroidLocationManager: true,
+          locationSettings: locationSettings,
+        );
+        
+        if (mounted) {
+          setState(() {
+            _currentLocation = LatLng(position.latitude, position.longitude);
+          });
 
-        if (_currentLocation != null) {
-          _mapController.move(_currentLocation!, 15);
+          if (_currentLocation != null) {
+            _mapController.move(_currentLocation!, 15);
+          }
+          return; // Sukses mendapatkan lokasi
         }
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mendapatkan lokasi: ${e.toString()}')),
+          SnackBar(content: Text('Mencoba mendapatkan lokasi kembali... (${retryCount + 1}/$maxRetries)')),
         );
       }
+      retryCount++;
+      if (retryCount < maxRetries) {
+        await Future.delayed(const Duration(seconds: 2)); // Tunggu sebentar sebelum mencoba lagi
+        continue;
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal mendapatkan lokasi setelah $maxRetries percobaan: ${e.toString()}')),
+          );
+        }
+        break;
+      }
+    }
     }
   }
 

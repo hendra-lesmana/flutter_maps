@@ -33,6 +33,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
   final TextEditingController _searchController = TextEditingController();
+  final GlobalKey<MapViewState> _mapViewKey = GlobalKey<MapViewState>();
 
   void _onItemSelected(int index) {
     setState(() {
@@ -56,7 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const MapView(),
+          MapView(key: _mapViewKey),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 0,
@@ -75,7 +76,9 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Implement current location functionality
+          if (_selectedIndex == 0) {
+            _mapViewKey.currentState?.getCurrentLocation();
+          }
         },
         child: const Icon(Icons.my_location),
       ),
