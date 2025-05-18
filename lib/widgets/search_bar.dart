@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CustomSearchBar extends StatefulWidget {
   final TextEditingController controller;
@@ -31,15 +32,29 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
     setState(() => _isLoading = true);
 
     try {
-      final locations = await locationFromAddress(query);
-      if (locations.isNotEmpty && widget.onLocationFound != null) {
-        final location = locations.first;
-        widget.onLocationFound!(location.latitude, location.longitude);
+      final response = await http.get(
+        Uri.parse('https://nominatim.openstreetmap.org/search?format=json&q=${Uri.encodeComponent(query)}'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> results = jsonDecode(response.body);
+        if (results.isNotEmpty && widget.onLocationFound != null) {
+          final location = results.first;
+          widget.onLocationFound!(
+            double.parse(location['lat']),
+            double.parse(location['lon']),
+          );
+        } else {
+          throw Exception('No results found');
+        }
+      } else {
+        throw Exception('Failed to load search results');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location not found')),
+          SnackBar(content: Text('Location not found: ${e.toString()}')),
         );
       }
     } finally {
