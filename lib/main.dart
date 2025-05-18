@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map_app/widgets/bottom_nav_bar.dart';
 import 'package:flutter_map_app/widgets/map_view.dart';
+import 'package:flutter_map_app/pages/bookmark_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -44,10 +45,18 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       extendBody: true,
       extendBodyBehindAppBar: true,
-      body: Stack(
-        fit: StackFit.expand,
+      body: IndexedStack(
+        index: _selectedIndex,
         children: [
-          MapView(key: _mapViewKey),
+          Stack(
+            fit: StackFit.expand,
+            children: [
+              MapView(key: _mapViewKey),
+            ],
+          ),
+          Container(), // Alerts page placeholder
+          const BookmarkPage(),
+          Container(), // Settings page placeholder
         ],
       ),
       bottomNavigationBar: CustomBottomNavBar(
