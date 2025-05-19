@@ -6,6 +6,7 @@ import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 import 'location_details.dart';
 
 class MapView extends StatefulWidget {
@@ -25,6 +26,27 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _searchSuggestions = [];
   bool _isLoading = false;
   Timer? _debounceTimer;
+  List<LatLng> _routePoints = [];
+  final String _openRouteServiceApiKey = '5b3ce3597851110001cf6248ead1d3cd429d42d8b6e3551364afa4ee';
+
+  // Helper method to calculate appropriate zoom level based on coordinate span
+  double _calculateZoomLevel(double span) {
+    // Base calculation on the relationship between zoom levels and coordinate spans
+    // Zoom level 0 shows the entire world (360 degrees)
+    // Each zoom level divides the span by 2
+    const double worldSpan = 360.0;
+    const double maxZoom = 18.0; // Maximum zoom level
+    const double minZoom = 3.0;  // Minimum zoom level
+    
+    // Calculate ideal zoom level
+    double zoom = (log(worldSpan / span) / log(2.0));
+    
+    // Add padding to ensure the route is visible with some margin
+    zoom = zoom - 0.5;
+    
+    // Clamp zoom level between min and max values
+    return zoom.clamp(minZoom, maxZoom);
+  }
 
   @override
   void initState() {
@@ -41,8 +63,94 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     super.initState();
   }
 
+  Future<void> _getDirections(LatLng start, LatLng end) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car')
+          .replace(queryParameters: {
+            'api_key': _openRouteServiceApiKey,
+            'start': '${start.longitude},${start.latitude}',
+            'end': '${end.longitude},${end.latitude}',
+          }),
+        headers: {
+          'Accept': 'application/json, application/geo+json',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['features'] != null && data['features'].isNotEmpty) {
+          final geometry = data['features'][0]['geometry'];
+          if (geometry != null && geometry['coordinates'] != null) {
+            final coordinates = (geometry['coordinates'] as List)
+              .map((coord) => LatLng(coord[1] as double, coord[0] as double))
+              .toList();
+
+            setState(() {
+              _routePoints = coordinates.cast<LatLng>();
+              // Add markers for start and end points
+              _markers = [
+                Marker(
+                  point: start,
+                  width: 40,
+                  height: 40,
+                  child: const Icon(Icons.location_on, color: Colors.blue, size: 40),
+                ),
+                Marker(
+                  point: end,
+                  width: 40,
+                  height: 40,
+                  child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+                ),
+              ];
+            });
+
+            // Fit the map bounds to show the entire route
+            // Calculate the bounds and center the map to show the entire route
+            if (_routePoints.isNotEmpty) {
+              double minLat = _routePoints.first.latitude;
+              double maxLat = _routePoints.first.latitude;
+              double minLng = _routePoints.first.longitude;
+              double maxLng = _routePoints.first.longitude;
+
+              for (var point in _routePoints) {
+                minLat = point.latitude < minLat ? point.latitude : minLat;
+                maxLat = point.latitude > maxLat ? point.latitude : maxLat;
+                minLng = point.longitude < minLng ? point.longitude : minLng;
+                maxLng = point.longitude > maxLng ? point.longitude : maxLng;
+              }
+
+              final centerLat = (minLat + maxLat) / 2;
+              final centerLng = (minLng + maxLng) / 2;
+              final center = LatLng(centerLat, centerLng);
+              
+              // Calculate appropriate zoom level
+              final latZoom = _calculateZoomLevel(maxLat - minLat);
+              final lngZoom = _calculateZoomLevel(maxLng - minLng);
+              final zoom = latZoom < lngZoom ? latZoom : lngZoom;
+
+              _mapController.move(center, zoom);
+            }
+          }
+        }
+      } else {
+        throw Exception('Failed to get route directions');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   Future<void> moveToLocation(double lat, double lon) async {
     final newLocation = LatLng(lat, lon);
+    if (_currentLocation != null) {
+      await _getDirections(_currentLocation!, newLocation);
+    }
     _mapController.move(newLocation, 15.0);
     
     setState(() {
@@ -331,6 +439,18 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             ],
           ),
           MarkerLayer(markers: _markers),
+          if (_routePoints.isNotEmpty)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: _routePoints,
+                  strokeWidth: 5,
+                  color: Colors.red.withOpacity(0.8),
+                  borderStrokeWidth: 3,
+                  borderColor: Colors.white.withOpacity(0.3),
+                ),
+              ],
+            ),
         ],
       ),
       Positioned(
