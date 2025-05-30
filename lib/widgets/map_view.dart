@@ -496,6 +496,7 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                           setState(() {
                             _markers.clear();
                             _searchSuggestions = [];
+                            _routePoints = []; // Clear polyline when search is closed
                           });
                         },
                       ),
