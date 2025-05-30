@@ -81,7 +81,9 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['features'] != null && data['features'].isNotEmpty) {
-          final geometry = data['features'][0]['geometry'];
+          final feature = data['features'][0];
+          final geometry = feature['geometry'];
+          final properties = feature['properties'];
           if (geometry != null && geometry['coordinates'] != null) {
             final coordinates = (geometry['coordinates'] as List)
               .map((coord) => LatLng(coord[1] as double, coord[0] as double))
@@ -131,6 +133,25 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
               final zoom = latZoom < lngZoom ? latZoom : lngZoom;
 
               _mapController.move(center, zoom);
+            }
+
+            // Show route details if properties are available
+            if (mounted && properties != null && properties['summary'] != null) {
+              final summary = properties['summary'];
+              double distance = summary['distance'] as double;
+              double duration = summary['duration'] as double;
+
+              double distanceInKm = distance / 1000;
+              double durationInMinutes = duration / 60;
+
+              showMaterialModalBottomSheet(
+                context: context,
+                backgroundColor: Colors.transparent,
+                builder: (context) => RouteDetails(
+                  distance: distanceInKm,
+                  duration: durationInMinutes,
+                ),
+              );
             }
           }
         }
@@ -599,5 +620,129 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
         ),
       ),
     ]);
+  }
+}
+
+class RouteDetails extends StatelessWidget {
+  final double distance;
+  final double duration;
+
+  const RouteDetails({
+    Key? key,
+    required this.distance,
+    required this.duration,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Route Information',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.directions, color: Colors.blue, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Distance',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${distance.toStringAsFixed(1)} km',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(Icons.access_time, color: Colors.blue, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Duration',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${duration.toStringAsFixed(0)} min',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
