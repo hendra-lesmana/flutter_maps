@@ -148,13 +148,10 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
 
   Future<void> moveToLocation(double lat, double lon) async {
     final newLocation = LatLng(lat, lon);
-    if (_currentLocation != null) {
-      await _getDirections(_currentLocation!, newLocation);
-    }
-    _mapController.move(newLocation, 15.0);
     
+    // Always add the new location marker
     setState(() {
-      _markers = [
+      _markers.add(
         Marker(
           point: newLocation,
           width: 80,
@@ -174,8 +171,50 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             ),
           ),
         ),
-      ];
+      );
     });
+    
+    // Get directions if we have current location
+    if (_currentLocation != null) {
+      await _getDirections(_currentLocation!, newLocation);
+    }
+    
+    // Calculate bounds to include all markers and routes
+    if (_routePoints.isNotEmpty || _markers.isNotEmpty) {
+      double minLat = lat;
+      double maxLat = lat;
+      double minLng = lon;
+      double maxLng = lon;
+
+      // Include all route points in bounds
+      for (var point in _routePoints) {
+        minLat = min(minLat, point.latitude);
+        maxLat = max(maxLat, point.latitude);
+        minLng = min(minLng, point.longitude);
+        maxLng = max(maxLng, point.longitude);
+      }
+      
+      // Include all markers in bounds
+      for (var marker in _markers) {
+        minLat = min(minLat, marker.point.latitude);
+        maxLat = max(maxLat, marker.point.latitude);
+        minLng = min(minLng, marker.point.longitude);
+        maxLng = max(maxLng, marker.point.longitude);
+      }
+
+      final centerLat = (minLat + maxLat) / 2;
+      final centerLng = (minLng + maxLng) / 2;
+      final center = LatLng(centerLat, centerLng);
+      
+      // Calculate appropriate zoom level
+      final latZoom = _calculateZoomLevel(maxLat - minLat);
+      final lngZoom = _calculateZoomLevel(maxLng - minLng);
+      final zoom = min(latZoom, lngZoom);
+
+      _mapController.move(center, zoom);
+    } else {
+      _mapController.move(newLocation, 15.0);
+    }
   }
 
   @override
