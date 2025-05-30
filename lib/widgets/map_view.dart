@@ -28,6 +28,8 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   Timer? _debounceTimer;
   List<LatLng> _routePoints = [];
   final String _openRouteServiceApiKey = '5b3ce3597851110001cf6248ead1d3cd429d42d8b6e3551364afa4ee';
+  double? _routeDistance;
+  double? _routeDuration;
 
   // Helper method to calculate appropriate zoom level based on coordinate span
   double _calculateZoomLevel(double span) {
@@ -89,8 +91,15 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
               .map((coord) => LatLng(coord[1] as double, coord[0] as double))
               .toList();
 
+            // Extract distance and duration from properties
+            final summary = properties['summary'];
+            double distanceVal = summary['distance'] as double;
+            double durationVal = summary['duration'] as double;
+
             setState(() {
               _routePoints = coordinates.cast<LatLng>();
+              _routeDistance = distanceVal / 1000;
+              _routeDuration = durationVal / 60;
               // Add markers for start and end points
               _markers = [
                 Marker(
@@ -500,16 +509,30 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           ),
           MarkerLayer(markers: _markers),
           if (_routePoints.isNotEmpty)
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: _routePoints,
-                  strokeWidth: 5,
-                  color: Colors.red.withOpacity(0.8),
-                  borderStrokeWidth: 3,
-                  borderColor: Colors.white.withOpacity(0.3),
-                ),
-              ],
+            GestureDetector(
+              onTap: () {
+                if (_routeDistance != null && _routeDuration != null) {
+                  showMaterialModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => RouteDetails(
+                      distance: _routeDistance!,
+                      duration: _routeDuration!,
+                    ),
+                  );
+                }
+              },
+              child: PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _routePoints,
+                    strokeWidth: 5,
+                    color: Colors.red.withOpacity(0.8),
+                    borderStrokeWidth: 3,
+                    borderColor: Colors.white.withOpacity(0.3),
+                  ),
+                ],
+              ),
             ),
         ],
       ),
