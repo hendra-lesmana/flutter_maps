@@ -30,6 +30,8 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   final String _openRouteServiceApiKey = '5b3ce3597851110001cf6248ead1d3cd429d42d8b6e3551364afa4ee';
   double? _routeDistance;
   double? _routeDuration;
+  String? _startLocationName;
+  String? _endLocationName;
 
   // Helper method to calculate appropriate zoom level based on coordinate span
   double _calculateZoomLevel(double span) {
@@ -159,6 +161,8 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                 builder: (context) => RouteDetails(
                   distance: distanceInKm,
                   duration: durationInMinutes,
+                  startLocation: _startLocationName ?? "Current Location",
+                  endLocation: _endLocationName ?? "Destination",
                 ),
               );
             }
@@ -176,7 +180,7 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     }
   }
 
-  Future<void> moveToLocation(double lat, double lon) async {
+  Future<void> moveToLocation(double lat, double lon, String name) async {
     final newLocation = LatLng(lat, lon);
     
     // Always add the new location marker
@@ -202,6 +206,7 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           ),
         ),
       );
+      _endLocationName = name;
     });
     
     // Get directions if we have current location
@@ -253,6 +258,32 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<String?> _reverseGeocode(LatLng location) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://nominatim.openstreetmap.org/reverse')
+          .replace(queryParameters: {
+            'format': 'json',
+            'lat': location.latitude.toString(),
+            'lon': location.longitude.toString(),
+          }),
+        headers: {'User-Agent': 'Flutter_Map_App'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['display_name'] as String?;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reverse geocode error: ${e.toString()}')),
+        );
+      }
+    }
+    return null;
+  }
+
   Future<void> getCurrentLocation() async {
     int retryCount = 0;
     const maxRetries = 3;
@@ -295,14 +326,18 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
         );
         
         if (mounted) {
+          final currentLocation = LatLng(position.latitude, position.longitude);
+          final locationName = await _reverseGeocode(currentLocation);
+          
           setState(() {
-            _currentLocation = LatLng(position.latitude, position.longitude);
+            _currentLocation = currentLocation;
+            _startLocationName = locationName ?? "Current Location";
           });
 
           if (_currentLocation != null) {
             _mapController.move(_currentLocation!, 15);
           }
-          return; // Sukses mendapatkan lokasi
+          return;
         }
     } catch (e) {
       if (mounted) {
@@ -518,6 +553,8 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                     builder: (context) => RouteDetails(
                       distance: _routeDistance!,
                       duration: _routeDuration!,
+                      startLocation: _startLocationName ?? "Current Location",
+                      endLocation: _endLocationName ?? "Destination",
                     ),
                   );
                 }
@@ -631,6 +668,7 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                           moveToLocation(
                             suggestion['lat'] as double,
                             suggestion['lon'] as double,
+                            suggestion['display_name'] as String,
                           );
                           setState(() => _searchSuggestions = []);
                         },
@@ -649,11 +687,15 @@ class MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
 class RouteDetails extends StatelessWidget {
   final double distance;
   final double duration;
+  final String startLocation;
+  final String endLocation;
 
   const RouteDetails({
     Key? key,
     required this.distance,
     required this.duration,
+    required this.startLocation,
+    required this.endLocation,
   }) : super(key: key);
 
   @override
@@ -686,6 +728,20 @@ class RouteDetails extends StatelessWidget {
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'From: $startLocation',
+                  style: const TextStyle(fontSize: 16),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'To: $endLocation',
+                  style: const TextStyle(fontSize: 16),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 16),
                 Row(
